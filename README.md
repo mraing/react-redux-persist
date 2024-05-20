@@ -1,70 +1,144 @@
-# Getting Started with Create React App
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
-## Available Scripts
+### 安装
 
-In the project directory, you can run:
+```shell
+npm install react-redux redux redux-persist
+```
 
-### `npm start`
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### 配置
 
-### `npm test`
+```js
+// src/redux/store.js
+import { legacy_createStore as createStore } from 'redux'
+import { persistStore, persistReducer } from 'redux-persist'
+// 1. 引入相关文件
+import storage from 'redux-persist/lib/storage'
+// 引入store数据
+import allReducers from './reducers'
+// 2.配置数据持久化状态
+const persistConfig = {
+  key: 'Root',
+  storage
+}
+// 3. 持久化根reducer和配置,并返回所有
+const persistedReducer = persistReducer(persistConfig, allReducers)
+// 4. 创建 持久化store对象
+let store = createStore(persistedReducer)
+// 5. 持久化store对象
+let persistor = persistStore(store)
+// 6.导出
+export { store, persistor }
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
 
-### `npm run build`
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```js
+// src/redux/reducrs/index.js
+import { combineReducers } from 'redux'
+import {counter} from './userMessage'
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+export default combineReducers({
+  counter
+})
+```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
 
-### `npm run eject`
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+```js
+// src/redux/reducrs/userMessage.js
+const initialState = 0;
+const counter = (state = initialState, action) => {
+    const { type, value } = action
+    switch (type) {
+        case 'INCREMENT':
+            return state + value;
+        case 'DECREMENT':
+            return state - value;
+            // 重置数据
+        case 'RESET_COUNTER':
+            return initialState;
+        default:
+            return state;
+    }
+};
+export {counter}
+```
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
 
-## Learn More
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```js
+// src/index.js
+import React from 'react';
+import ReactDOM from 'react-dom/client';
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+import { Provider } from 'react-redux'
+import { store, persistor } from './redux/store'
+import { PersistGate } from 'redux-persist/integration/react'
 
-### Code Splitting
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+import App from './App';
 
-### Analyzing the Bundle Size
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(
+  <Provider store={store}>
+    <PersistGate loading={null} persistor={persistor}>
+      <App />
+    </PersistGate>
+  </Provider>
+);
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
 
-### Making a Progressive Web App
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+### 使用
 
-### Advanced Configuration
+```js
+import React from "react";
+import { connect } from "react-redux";
+import { useSelector, useDispatch } from 'react-redux'
+const App = ({ counter, setUserMessage }) => {
+  const dispatch = useDispatch();
+    
+  const handleSetMsg = (value) => {
+    setUserMessage(value)
+  }
+  const handleReset = async () => {
+      await persistor.purge();
+      await persistor.flush();
+  }
+  return (
+    <div>
+      <h2>store 数据可持久化</h2>
+      <h2>Counter: {counter}</h2>
+      <button onClick={() => dispatch({ type: 'INCREMENT' })}>Increment</button>
+      <button onClick={() => dispatch({ type: 'DECREMENT' })}>Decrement</button>
+      <button onClick={() => dispatch({ type: 'RESET_COUNTER' })}>重置数据</button>
+	  <hr/>
+      同样的效果
+      <button onClick={() => handleSetMsg(4)}>Increment</button>
+	<hr/>
+      <button onClick={handleReset}>重置所有数据</button>
+    </div>
+  );
+};
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+const mapStateToProps = state => {
+  const { count } = state
+  return { userMessage }
+}
 
-### Deployment
+const mapDispatchToProps = {
+  setUserMessage(value) {
+    return { type: 'INCREMENT', value }
+  }
+}
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+export default connect(mapStateToProps, mapDispatchToProps)(App);
 
-### `npm run build` fails to minify
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
